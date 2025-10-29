@@ -1,13 +1,16 @@
 package com.example.auth_service;
 
+import com.example.auth_service.exception.MissingTokenException;
+import com.example.auth_service.request.LoginRequest;
+import com.example.auth_service.request.RegisterRequest;
+import com.example.auth_service.response.*;
+import com.example.auth_service.service.AuthService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
@@ -16,8 +19,7 @@ public class AuthController {
     private final AuthService authService;
 
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody RegisterRequest request) {
-        try {
+    public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request) {
             User user = authService.register(request);
             RegisterResponse response = RegisterResponse.builder()
                     .id(user.getId())
@@ -25,23 +27,11 @@ public class AuthController {
                     .name(user.getName())
                     .build();
 
-            return ResponseEntity.ok(ApiResponse.<RegisterResponse>builder()
-                    .success(true)
-                    .message("회원가입 성공")
-                    .data(response)
-                    .build());
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(ApiResponse.<RegisterResponse>builder()
-                    .success(false)
-                    .message(e.getMessage())
-                    .data(null)
-                    .build());
-        }
+            return ResponseEntity.ok(response);
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
-        try {
+    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
             LoginResult loginResult = authService.login(request);
 
             ResponseCookie cookie = ResponseCookie.from("refreshToken", loginResult.getRefreshToken())
@@ -60,74 +50,24 @@ public class AuthController {
             return ResponseEntity.ok()
                     .header(HttpHeaders.AUTHORIZATION,"Bearer " + loginResult.getAccessToken())
                     .header(HttpHeaders.SET_COOKIE,cookie.toString())
-                    .body(ApiResponse.<LoginResponse>builder()
-                            .success(true)
-                            .message("로그인 성공")
-                            .data(response)
-                            .build());
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(ApiResponse.<LoginResponse>builder()
-                    .success(false)
-                    .message(e.getMessage())
-                    .data(null)
-                    .build());
-        }
+                    .body(response);
     }
 
-    @GetMapping("/validate")
-    public ResponseEntity<ApiResponse<TokenValidationResponse>> validate(
-            @RequestHeader(value = "Authorization", required = false) String tokenHeader) {
-
-        if (tokenHeader == null) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(ApiResponse.<TokenValidationResponse>builder()
-                            .success(false)
-                            .message("Authorization 헤더가 없습니다.")
-                            .data(TokenValidationResponse.builder()
-                                    .valid(false)
-                                    .build())
-                            .build());
+    @PostMapping("/refresh")
+    public ResponseEntity<?> refresh(@CookieValue(value = "refreshToken",required = false) String refreshToken) {
+        if(refreshToken == null) {
+            throw new MissingTokenException();
         }
 
-        try {
-            String token = tokenHeader.replace("Bearer ", "");
-            boolean isValid = authService.validate(token);
+        RefreshResult refreshResult = authService.refreshAccessToken(refreshToken);
+        RefreshResponse response = RefreshResponse.builder()
+                .username(refreshResult.getUsername())
+                .name(refreshResult.getName())
+                .build();
 
-            if (!isValid) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                        .body(ApiResponse.<TokenValidationResponse>builder()
-                                .success(false)
-                                .message("유효하지 않은 토큰입니다.")
-                                .data(TokenValidationResponse.builder()
-                                        .valid(false)
-                                        .build())
-                                .build());
-            }
-
-            String username = authService.getUsernameFromToken(token);
-            String role = authService.getRoleFromToken(token);
-
-            return ResponseEntity.ok(ApiResponse.<TokenValidationResponse>builder()
-                    .success(true)
-                    .message("토큰이 유효합니다.")
-                    .data(TokenValidationResponse.builder()
-                            .valid(true)
-                            .username(username)
-                            .role(role)
-                            .build())
-                    .build());
-
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.<TokenValidationResponse>builder()
-                            .success(false)
-                            .message(e.getMessage())
-                            .data(TokenValidationResponse.builder()
-                                    .valid(false)
-                                    .build())
-                            .build());
-        }
+        return ResponseEntity.ok()
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + refreshResult.getAccessToken())
+                .body(response);
     }
-
 
 }

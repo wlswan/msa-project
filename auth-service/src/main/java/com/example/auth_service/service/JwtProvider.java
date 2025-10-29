@@ -1,8 +1,9 @@
-package com.example.auth_service;
+package com.example.auth_service.service;
 
-import io.jsonwebtoken.JwtException;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
+import com.example.auth_service.Role;
+import com.example.auth_service.exception.ExpiredTokenException;
+import com.example.auth_service.exception.InvalidTokenException;
+import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.stereotype.Component;
 
@@ -36,30 +37,32 @@ public class JwtProvider {
                 .compact();
     }
 
-    public boolean validateToken(String token) {
-        try {
-            Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
-            return true;
-        } catch (JwtException | IllegalArgumentException e) {
-            return false;
-        }
-    }
 
-    public String getUsernameFromToken(String token) {
+    public String extractUsername(String refreshToken) {
         return Jwts.parserBuilder()
                 .setSigningKey(key)
                 .build()
-                .parseClaimsJws(token)
+                .parseClaimsJws(refreshToken)
                 .getBody()
                 .getSubject();
     }
 
-    public String getRoleFromToken(String token) {
-        return Jwts.parserBuilder()
-                .setSigningKey(key)
-                .build()
-                .parseClaimsJws(token)
-                .getBody()
-                .get("role", String.class);
+    public void validate(String refreshToken) {
+        try {
+            Jws<Claims> claims = Jwts.parserBuilder()
+                    .setSigningKey(key)
+                    .build()
+                    .parseClaimsJws(refreshToken);
+
+            Claims body = claims.getBody();
+
+            if (body.getExpiration().before(new Date())) {
+                throw new ExpiredTokenException();
+            }
+        } catch (ExpiredJwtException e) {
+            throw new ExpiredTokenException();
+        } catch (JwtException e) {
+            throw new InvalidTokenException();
+        }
     }
 }
