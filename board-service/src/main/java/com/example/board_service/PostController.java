@@ -2,6 +2,8 @@ package com.example.board_service;
 
 import com.example.board_service.dto.PostRequest;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.logging.log4j.Logger;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -16,8 +18,9 @@ public class PostController {
 
     @PostMapping
     public ResponseEntity<?> create(@RequestBody PostRequest postRequest,
-                                    @RequestHeader(HttpHeaders.AUTHORIZATION) String token) {
-        Post post = postService.createPost(postRequest, token);
+                                    @RequestHeader("X-User-Name") String username)
+    {
+        Post post = postService.createPost(postRequest, username);
         return ResponseEntity.ok(post);
     }
 
@@ -36,16 +39,17 @@ public class PostController {
     @PutMapping("/{id}")
     public ResponseEntity<?> updatePost(@PathVariable Long id,
                                         @RequestBody PostRequest postRequest,
-                                        @RequestHeader(HttpHeaders.AUTHORIZATION) String token) {
-
-        Post updated = postService.updatePost(id, postRequest, token);
+                                        @RequestHeader("X-User-Name") String username,
+                                        @RequestHeader("X-User-Role") String role) {
+        Post updated = postService.updatePost(id, postRequest, username, role);
         return ResponseEntity.ok(updated);
     }
 
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deletePost(@PathVariable Long id,
-                                        @RequestHeader(HttpHeaders.AUTHORIZATION) String token){
-        postService.deletePost(id,token);
+                                        @RequestHeader("X-User-Name") String username,
+                                        @RequestHeader("X-User-Role") String role){
+        postService.deletePost(id,username,role);
         return ResponseEntity.noContent().build();
     }
 }

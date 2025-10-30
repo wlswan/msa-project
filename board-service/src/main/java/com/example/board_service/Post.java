@@ -1,14 +1,18 @@
 package com.example.board_service;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Builder
 @Getter
+@NoArgsConstructor
+@AllArgsConstructor
 public class Post {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -22,6 +26,8 @@ public class Post {
     private LocalDateTime updatedAt;
 
     private String author;
+
+
 
     @PrePersist
     public void onCrete(){
