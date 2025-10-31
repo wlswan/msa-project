@@ -1,5 +1,6 @@
 package com.example.board_service;
 
+import com.example.board_service.dto.PostPageResponse;
 import com.example.board_service.dto.PostRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,9 +32,12 @@ public class PostController {
     }
 
     @GetMapping
-    public ResponseEntity<?> getAllPosts() {
-        List<Post> posts = postService.getAllPosts();
-        return ResponseEntity.ok(posts);
+    public ResponseEntity<?> getAllPosts(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int limit
+    ) {
+        PostPageResponse response = postService.getPosts(page, limit);
+        return ResponseEntity.ok(response);
     }
 
     @PutMapping("/{id}")

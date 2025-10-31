@@ -1,6 +1,8 @@
 package com.example.board_service;
 
+import com.example.board_service.dto.PostPageResponse;
 import com.example.board_service.dto.PostRequest;
+import com.example.board_service.dto.PostResponse;
 import com.example.board_service.exception.PostNotFoundException;
 import com.example.board_service.exception.UnAuthorizedRequestException;
 import lombok.RequiredArgsConstructor;
@@ -50,5 +52,16 @@ public class PostService {
 
         postRepository.delete(post);
     }
+
+    public PostPageResponse getPosts(int page, int limit) {
+        int offset = (page-1) * limit;
+        List<PostResponse> postResponses = postRepository.findPostsJoin(offset, limit).stream().map(PostResponse::from).toList();
+        long totalCount = postRepository.count();
+
+        return new PostPageResponse(postResponses, page, limit, totalCount);
+
+    }
+
+
 }
 
