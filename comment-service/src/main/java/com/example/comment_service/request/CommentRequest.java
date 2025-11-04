@@ -1,4 +1,4 @@
-package com.example.comment_service;
+package com.example.comment_service.request;
 
 import lombok.Builder;
 import lombok.Data;

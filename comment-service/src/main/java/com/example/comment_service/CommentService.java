@@ -3,6 +3,9 @@ package com.example.comment_service;
 import com.example.comment_service.exception.CommentNotFoundException;
 import com.example.comment_service.exception.InvalidParentException;
 import com.example.comment_service.exception.UnauthorizedRequestException;
+import com.example.comment_service.request.CommentRequest;
+import com.example.comment_service.response.CommentPageResponse;
+import com.example.comment_service.response.CommentResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,29 +21,15 @@ public class CommentService {
     @Transactional
     public CommentResponse create(Long postId, CommentRequest request, String username) {
         Comment parent = findParent(request);
-        Comment comment = Comment.builder()
+        Comment comment = commentRepository.save(Comment.builder()
                 .postId(postId)
                 .author(username)
                 .content(request.getContent())
                 .parentId(parent == null ? null : parent.getId())
-                .build();
+                .build());
 
-        Comment saved = commentRepository.save(comment);
-
-        if (parent == null) {
-            comment = commentRepository.save(
-                    Comment.builder()
-                            .id(saved.getId())
-                            .postId(saved.getPostId())
-                            .author(saved.getAuthor())
-                            .content(saved.getContent())
-                            .deleted(saved.getDeleted())
-                            .parentId(saved.getId())
-                            .build()
-            );
-        }
+        comment.markSelfAsParent();
         return CommentResponse.from(comment);
-
     }
     public CommentPageResponse getCommentsByPost(Long postId, int page, int size) {
         int offset = page * size;

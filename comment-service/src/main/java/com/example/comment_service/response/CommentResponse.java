@@ -1,5 +1,6 @@
-package com.example.comment_service;
+package com.example.comment_service.response;
 
+import com.example.comment_service.Comment;
 import lombok.Builder;
 import lombok.Data;
 

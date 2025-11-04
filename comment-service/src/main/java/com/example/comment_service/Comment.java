@@ -26,6 +26,11 @@ public class Comment {
         this.content = content;
     }
 
+    public void markSelfAsParent() {
+        if (this.parentId == null) {
+            this.parentId = this.id;
+        }
+    }
     public boolean isRoot() {
         return parentId.longValue() == id;
     }

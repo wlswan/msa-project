@@ -1,4 +1,4 @@
-package com.example.comment_service;
+package com.example.comment_service.response;
 
 import lombok.Getter;
 

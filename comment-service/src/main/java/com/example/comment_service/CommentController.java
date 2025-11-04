@@ -1,5 +1,8 @@
 package com.example.comment_service;
 
+import com.example.comment_service.request.CommentRequest;
+import com.example.comment_service.response.CommentPageResponse;
+import com.example.comment_service.response.CommentResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
