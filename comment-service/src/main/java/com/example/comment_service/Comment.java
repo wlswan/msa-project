@@ -16,7 +16,7 @@ public class Comment {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private Long postId;
-    //private String author;
+    private String author;
     private String content;
     @Builder.Default
     private Boolean deleted = false;
@@ -32,4 +32,5 @@ public class Comment {
     public void delete()  {
         deleted = true;
     }
+
 }

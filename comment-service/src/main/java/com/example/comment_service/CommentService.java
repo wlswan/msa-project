@@ -1,5 +1,8 @@
 package com.example.comment_service;
 
+import com.example.comment_service.exception.CommentNotFoundException;
+import com.example.comment_service.exception.InvalidParentException;
+import com.example.comment_service.exception.UnauthorizedRequestException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,22 +16,23 @@ public class CommentService {
     private final CommentRepository commentRepository;
 
     @Transactional
-    public CommentResponse create(Long postId, CommentRequest request) {
+    public CommentResponse create(Long postId, CommentRequest request, String username) {
         Comment parent = findParent(request);
         Comment comment = Comment.builder()
                 .postId(postId)
+                .author(username)
                 .content(request.getContent())
                 .parentId(parent == null ? null : parent.getId())
                 .build();
 
         Comment saved = commentRepository.save(comment);
 
-
         if (parent == null) {
             comment = commentRepository.save(
                     Comment.builder()
                             .id(saved.getId())
                             .postId(saved.getPostId())
+                            .author(saved.getAuthor())
                             .content(saved.getContent())
                             .deleted(saved.getDeleted())
                             .parentId(saved.getId())
@@ -51,31 +55,29 @@ public class CommentService {
 
 
     @Transactional
-    public void delete(Long commentId) {
-        commentRepository.findById(commentId)
-                .filter(comment -> !comment.getDeleted())
-                .ifPresent(comment ->
-                {
-                    if(hasChildren(comment)) {
-                        comment.delete();
-                    }
-                    else {
-                        delete(comment);
-                    }
-                });
+    public void delete(Long commentId, String username, String role) {
+        Comment comment = commentRepository.findById(commentId).orElseThrow(CommentNotFoundException::new);
+
+        if (!comment.getAuthor().equals(username) && !"ADMIN".equals(role)) {
+            throw new UnauthorizedRequestException();
+        }
+
+        if (!comment.getDeleted()) {
+            if (hasChildren(comment)) {
+                comment.delete();
+            } else {
+                deleteRecursively(comment);
+            }
+        }
     }
 
-
-
-
-
-    private void delete(Comment comment) {
+    private void deleteRecursively(Comment comment) {
         commentRepository.delete(comment);
         if(!comment.isRoot()) {
             commentRepository.findById(comment.getParentId())
                     .filter(Comment::getDeleted)
                     .filter(not(this::hasChildren))
-                    .ifPresent(this::delete);
+                    .ifPresent(this::deleteRecursively);
         }
     }
 
@@ -92,7 +94,7 @@ public class CommentService {
         return commentRepository.findById(parentId)
                 .filter(comment -> !comment.getDeleted())
                 .filter(Comment::isRoot)
-                .orElseThrow();
+                .orElseThrow(InvalidParentException::new);
     }
 
 

@@ -8,7 +8,7 @@ import lombok.Data;
 public class CommentResponse {
     private Long id;
     private Long postId;
-    //private String author;
+    private String author;
     private Boolean deleted;
     private String content;
     private Long parentId;
@@ -17,7 +17,7 @@ public class CommentResponse {
         return CommentResponse.builder()
                 .id(comment.getId())
                 .postId(comment.getPostId())
-                //.author(comment.getAuthor())
+                .author(comment.getAuthor())
                 .deleted(comment.getDeleted())
                 .content(comment.getContent())
                 .parentId(comment.getParentId())
