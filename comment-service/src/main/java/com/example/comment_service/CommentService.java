@@ -3,6 +3,9 @@ package com.example.comment_service;
 import com.example.comment_service.exception.CommentNotFoundException;
 import com.example.comment_service.exception.InvalidParentException;
 import com.example.comment_service.exception.UnauthorizedRequestException;
+import com.example.comment_service.kafka.CommentEvent;
+import com.example.comment_service.kafka.CommentEventProducer;
+import com.example.comment_service.kafka.CommentType;
 import com.example.comment_service.request.CommentRequest;
 import com.example.comment_service.response.CommentPageResponse;
 import com.example.comment_service.response.CommentResponse;
@@ -17,10 +20,14 @@ import static java.util.function.Predicate.not;
 @RequiredArgsConstructor
 public class CommentService {
     private final CommentRepository commentRepository;
+    private final PostClient postClient;
+    private final CommentEventProducer commentEventProducer;
 
     @Transactional
     public CommentResponse create(Long postId, CommentRequest request, String username) {
         Comment parent = findParent(request);
+        String postAuthor = postClient.getPostAuthor(postId);
+
         Comment comment = commentRepository.save(Comment.builder()
                 .postId(postId)
                 .author(username)
@@ -29,6 +36,17 @@ public class CommentService {
                 .build());
 
         comment.markSelfAsParent();
+
+        CommentEvent event = CommentEvent.builder()
+                .postId(postId)
+                .commentId(comment.getId())
+                .writer(username)
+                .targetUser(parent == null ? postAuthor : parent.getAuthor())
+                .content(request.getContent())
+                .type(parent == null ? CommentType.COMMENT : CommentType.REPLY)
+                .build();
+        commentEventProducer.send(event);
+
         return CommentResponse.from(comment);
     }
     public CommentPageResponse getCommentsByPost(Long postId, int page, int size) {
