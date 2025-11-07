@@ -10,7 +10,8 @@ import java.time.LocalDateTime;
 @Builder
 public class NotificationResponse {
     private Long id;
-    private String targetUsername;
+    private String receiver;
+    private String sender;
     private String message;
     private CommentType type;
     private Long postId;
@@ -21,7 +22,8 @@ public class NotificationResponse {
     public static NotificationResponse from(Notification notification) {
         return NotificationResponse.builder()
                 .id(notification.getId())
-                .targetUsername(notification.getTargetUsername())
+                .receiver(notification.getReceiver())
+                .sender(notification.getSender())
                 .message(notification.getMessage())
                 .type(notification.getType())
                 .postId(notification.getPostId())

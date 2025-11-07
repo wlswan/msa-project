@@ -2,6 +2,7 @@ package com.example.notification_service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -12,9 +13,10 @@ import java.util.List;
 @RequiredArgsConstructor
 public class NotificationService {
     private final NotificationRepository notificationRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     public List<NotificationResponse> getNotifications(String username) {
-        return notificationRepository.findByTargetUsernameOrderByCreatedAtDesc(username)
+        return notificationRepository.findByReceiverOrderByCreatedAtDesc(username)
                 .stream()
                 .map(NotificationResponse::from)
                 .toList();
@@ -24,7 +26,8 @@ public class NotificationService {
         String message = buildMessage(event);
 
         Notification notification = Notification.builder()
-                .targetUsername(event.getTargetUser())
+                .receiver(event.getTargetUser())
+                .sender(event.getWriter())
                 .type(event.getType())
                 .postId(event.getPostId())
                 .message(message)
@@ -34,7 +37,19 @@ public class NotificationService {
 
         notificationRepository.save(notification);
 
+        try {
+            messagingTemplate.convertAndSendToUser(
+                    event.getTargetUser(),
+                    "/queue/notifications",
+                    NotificationResponse.from(notification)
+            );
+            log.info("📢 실시간 알림 전송 완료: {}", event.getTargetUser());
+        } catch (Exception e) {
+            log.error("❌ WebSocket 전송 실패: {}", e.getMessage());
+        }
+
     }
+
 
 
     private String buildMessage(CommentEvent event) {
