@@ -23,6 +23,14 @@ spring:
             - Path=/posts/**
           filters:
             - name: JwtAuthFilter
+
+        - id: websocket_route
+          uri: http://localhost:8085
+          predicates:
+            - Path=/ws/**
+          filters:
+            - JwtAuthFilter
 logging:
   level:
     org.springframework.cloud.gateway: TRACE
+    org.springframework.data.redis: DEBUG

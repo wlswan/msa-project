@@ -27,13 +27,22 @@ public class JwtAuthFilter extends AbstractGatewayFilterFactory<JwtAuthFilter.Co
     @Override
     public GatewayFilter apply(Config config) {
         return (exchange, chain) -> {
-            String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
+            String token = null;
 
-            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                return onError(exchange, "Missing or invalid Authorization header", HttpStatus.UNAUTHORIZED);
+            String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                token = authHeader.substring(7);
             }
 
-            String token = authHeader.substring(7);
+            //쿼리 파라미터(token)에서 추출 나중에 https 꼭 필요할듯
+            if (token == null) {
+                token = exchange.getRequest().getQueryParams().getFirst("token");
+            }
+
+            if (token == null || token.isEmpty()) {
+                return onError(exchange, "Missing JWT Token", HttpStatus.UNAUTHORIZED);
+            }
+
             try {
                 Jws<Claims> claims = Jwts.parserBuilder()
                         .setSigningKey(key)

@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>WebSocket 알림 자동 연결</title>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background: #f9f9f9; }
+        #log { background: #fff; border: 1px solid #ddd; padding: 10px; height: 300px; overflow-y: scroll; }
+        input, button { margin: 5px; padding: 8px; }
+    </style>
+</head>
+<body>
+
+<h2>💬 로그인 → 자동 WebSocket 연결 테스트</h2>
+
+<div>
+    <label>아이디:</label>
+    <input type="text" id="username" value="testuser1">
+    <label>비밀번호:</label>
+    <input type="password" id="password" value="12345678">
+    <button onclick="login()">로그인 후 자동 연결</button>
+</div>
+
+<h3>📜 로그</h3>
+<pre id="log"></pre>
+
+<script>
+    let stompClient = null;
+    let token = null;
+
+    function log(msg) {
+        const logBox = document.getElementById("log");
+        logBox.textContent += msg + "\n";
+        logBox.scrollTop = logBox.scrollHeight;
+        console.log(msg);
+    }
+
+    // 로그인 시도 → JWT 발급 → 바로 WebSocket 연결
+    async function login() {
+        log("🔐 로그인 시도 중...");
+
+        try {
+            const res = await fetch("http://localhost:8080/auth/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    username: document.getElementById("username").value,
+                    password: document.getElementById("password").value
+                })
+            });
+
+            const text = await res.text();
+            log("📨 로그인 응답: " + text);
+
+            const data = JSON.parse(text);
+            token = data.token || data.accessToken || data.jwt;
+
+            if (!token) {
+                const header = res.headers.get("Authorization");
+                if (header && header.startsWith("Bearer ")) {
+                    token = header.substring(7);
+                }
+            }
+
+            if (token) {
+                log("✅ 로그인 성공! JWT: " + token);
+                connectWebSocket(token); // 🔥 로그인 성공 후 즉시 WS 연결
+            } else {
+                log("❌ 토큰을 찾을 수 없습니다.");
+            }
+
+        } catch (e) {
+            log("❌ 로그인 오류: " + e);
+        }
+    }
+
+    // WebSocket 연결
+    function connectWebSocket(token) {
+        log("🌐 WebSocket 연결 시도 중...");
+
+        // 게이트웨이 필터가 ?token= 을 인식하게 되어 있으므로 이렇게 전달
+        const socket = new SockJS("http://localhost:8080/ws?token=" + token);
+        stompClient = Stomp.over(socket);
+
+        stompClient.connect({}, function (frame) {
+            log("✅ WebSocket 연결 성공: " + frame);
+
+            // /user/queue/notifications 구독
+            stompClient.subscribe("/user/queue/notifications", function (msg) {
+                const notification = JSON.parse(msg.body);
+                log("📢 새 알림: " + JSON.stringify(notification));
+            });
+
+        }, function (error) {
+            log("❌ WebSocket 연결 실패: " + error);
+        });
+    }
+</script>
+</body>
+</html>
