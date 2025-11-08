@@ -1,4 +1,4 @@
-package com.example.comment_service.kafka;
+package com.example.common;
 
 import lombok.*;
 
