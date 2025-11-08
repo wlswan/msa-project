@@ -1,4 +1,4 @@
-package com.example.notification_service;
+package com.example.common;
 
 import lombok.*;
 

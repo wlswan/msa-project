@@ -1,5 +1,6 @@
 package com.example.notification_service;
 
+import com.example.common.CommentType;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Builder;
 import lombok.Data;

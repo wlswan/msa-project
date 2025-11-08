@@ -1,5 +1,6 @@
 package com.example.notification_service;
 
+import com.example.common.CommentType;
 import jakarta.persistence.*;
 import lombok.*;
 
