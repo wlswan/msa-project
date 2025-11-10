@@ -56,4 +56,9 @@ public class PostController {
         postService.deletePost(id,username,role);
         return ResponseEntity.noContent().build();
     }
+
+    @GetMapping("/{postId}/author")
+    public String getPostAuthor(@PathVariable Long postId) {
+        return postService.getPostAuthorUsername(postId);
+    }
 }

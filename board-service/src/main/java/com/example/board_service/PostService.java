@@ -5,6 +5,8 @@ import com.example.board_service.dto.PostRequest;
 import com.example.board_service.dto.PostResponse;
 import com.example.board_service.exception.PostNotFoundException;
 import com.example.board_service.exception.UnAuthorizedRequestException;
+import com.example.common.PostCreatedEvent;
+import com.example.board_service.rabbitmq.PostEventProducer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -14,13 +16,15 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PostService {
     private final PostRepository postRepository;
-
+    private final PostEventProducer postEventProducer;
     public Post createPost(PostRequest request, String username) {
         Post post = Post.builder()
                 .title(request.getTitle())
                 .content(request.getContent())
                 .author(username)
                 .build();
+
+        postEventProducer.send(PostCreatedEvent.from(post));
         return postRepository.save(post);
     }
 
@@ -62,6 +66,11 @@ public class PostService {
 
     }
 
+    public String getPostAuthorUsername(Long postId) {
+        Post post = postRepository.findById(postId)
+                .orElseThrow(PostNotFoundException::new);
+        return post.getAuthor();
+    }
 
 }
 
