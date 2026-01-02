@@ -7,6 +7,8 @@ import com.example.common.CommentType;
 import feign.RetryableException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Recover;
@@ -17,6 +19,7 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 
 @Component
 @RequiredArgsConstructor
@@ -26,6 +29,7 @@ public class CommentEventListener {
     private final PostClient postClient;
     private final CommentEventProducer commentEventProducer;
     private final RedisTemplate<String, String> redisTemplate;
+    private final RedissonClient redissonClient;
 
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @Retryable(
@@ -39,21 +43,36 @@ public class CommentEventListener {
     public void handleCommentSaved(CommentSavedEvent event) {
         Long postId = event.getComment().getPostId();
         String key = "post:" + postId;
+        String lockKey = "lock:post:" + postId;
         String cache = redisTemplate.opsForValue().get(key);
 
         if(cache == null) {
-            cache = postClient.getPostAuthor(postId);
+            RLock lock = redissonClient.getLock(lockKey);
+            try {
+                boolean available = lock.tryLock(5, 10, TimeUnit.SECONDS);
+                if (available) {
+                    try {
+                        cache = redisTemplate.opsForValue().get(key);
+                        if (cache == null) {
+                            log.info("캐싱 실패, api 호출: postId={}", postId);
+                            cache = postClient.getPostAuthor(postId);
 
-            if(cache != null) {
-                redisTemplate.opsForValue().set(key,cache,Duration.ofMinutes(10));
+                            if (cache != null) {
+                                redisTemplate.opsForValue().set(key, cache, Duration.ofMinutes(10));
+                            }
+                        }
+                    } finally {
+                        lock.unlock();
+                    }
+                } else {
+                    log.warn("락 획득 실패");
+                    return;
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException("Lock Interrupted", e);
             }
         }
-
-        if (cache == null) {
-            log.info("게시글(ID:{}) 작성자를 찾을 수 없어 알림을 보내지 않습니다.", postId);
-            return;
-        }
-
         CommentEvent mqEvent = CommentEvent.builder()
                 .postId(postId)
                 .commentId(event.getComment().getId())
