@@ -5,6 +5,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.event.TransactionPhase;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 @Slf4j
 @Component
@@ -15,6 +17,7 @@ public class PostEventProducer {
     private static final String EXCHANGE_NAME = "post.exchange";
     private static final String CREATED_ROUTING_KEY = "post.created";
 
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void send(PostCreatedEvent event) {
         try {
             log.info("RabbitMQ 전송 시도: {}", event);

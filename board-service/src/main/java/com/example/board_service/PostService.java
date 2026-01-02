@@ -8,7 +8,9 @@ import com.example.board_service.exception.UnAuthorizedRequestException;
 import com.example.common.PostCreatedEvent;
 import com.example.board_service.rabbitmq.PostEventProducer;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -17,6 +19,9 @@ import java.util.List;
 public class PostService {
     private final PostRepository postRepository;
     private final PostEventProducer postEventProducer;
+    private final ApplicationEventPublisher eventPublisher;
+
+    @Transactional
     public Post createPost(PostRequest request, String username) {
         Post post = Post.builder()
                 .title(request.getTitle())
@@ -24,8 +29,9 @@ public class PostService {
                 .author(username)
                 .build();
 
-        postEventProducer.send(PostCreatedEvent.from(post));
-        return postRepository.save(post);
+        Post savedPost = postRepository.save(post);
+        eventPublisher.publishEvent(PostCreatedEvent.from(post));
+        return savedPost;
     }
 
     public Post getPost(Long postId) {
