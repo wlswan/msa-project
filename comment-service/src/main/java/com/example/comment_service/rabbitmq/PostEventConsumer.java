@@ -23,7 +23,7 @@ public class PostEventConsumer {
 
         String key = "post:" + event.getPostId();
         String author = event.getAuthor();
-        redisTemplate.opsForValue().set(key,author, Duration.ofHours(1));
+        redisTemplate.opsForValue().set(key,author, Duration.ofMinutes(10));
     }
 
 }

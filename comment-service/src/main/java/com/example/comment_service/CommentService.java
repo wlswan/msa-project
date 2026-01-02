@@ -12,6 +12,7 @@ import com.example.comment_service.response.CommentPageResponse;
 import com.example.comment_service.response.CommentResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,11 +29,11 @@ public class CommentService {
     private final PostClient postClient;
     private final RedisTemplate<String, String> redisTemplate;
     private final CommentEventProducer commentEventProducer;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public CommentResponse create(Long postId, CommentRequest request, String username) {
         Comment parent = findParent(request);
-        String postAuthor = getPostAuthor(postId);
 
         Comment comment = commentRepository.save(Comment.builder()
                 .postId(postId)
@@ -42,17 +43,7 @@ public class CommentService {
                 .build());
 
         comment.markSelfAsParent();
-
-        CommentEvent event = CommentEvent.builder()
-                .postId(postId)
-                .commentId(comment.getId())
-                .writer(username)
-                .targetUser(parent == null ? postAuthor : parent.getAuthor())
-                .content(request.getContent())
-                .type(parent == null ? CommentType.COMMENT : CommentType.REPLY)
-                .build();
-        commentEventProducer.send(event);
-
+        eventPublisher.publishEvent(new CommentSavedEvent(comment,parent == null ? null : parent.getId()));
         return CommentResponse.from(comment);
     }
     public CommentPageResponse getCommentsByPost(Long postId, int page, int size) {
@@ -108,26 +99,6 @@ public class CommentService {
                 .filter(comment -> !comment.getDeleted())
                 .filter(Comment::isRoot)
                 .orElseThrow(InvalidParentException::new);
-    }
-
-    private String getPostAuthor(Long postId) {
-        String key = "post:" + postId;
-
-        String author = redisTemplate.opsForValue().get(key);
-        if (author != null) {
-            log.info("캐싱 성공 postId={}, author={}", postId, author);
-            return author;
-        }
-
-        log.warn("캐싱 실패 postId={} -> post-service로 조회 시도", postId);
-        author = postClient.getPostAuthor(postId);
-
-        if (author != null) {
-            redisTemplate.opsForValue().set(key, author, Duration.ofHours(1));
-            log.info("Redis 캐싱 완료: {} = {}", key, author);
-        }
-
-        return author;
     }
 
 }
