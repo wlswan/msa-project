@@ -1,12 +1,15 @@
 package com.example.board_service;
 
-import com.example.board_service.dto.PostPageResponse;
-import com.example.board_service.dto.PostRequest;
-import com.example.board_service.dto.PostResponse;
+import com.example.board_service.response.PostPageResponse;
+import com.example.board_service.request.PostRequest;
+import com.example.board_service.response.PostResponse;
 import com.example.board_service.exception.PostNotFoundException;
 import com.example.board_service.exception.UnAuthorizedRequestException;
+import com.example.board_service.outbox.OutBoxRepository;
+import com.example.board_service.outbox.Outbox;
 import com.example.common.PostCreatedEvent;
-import com.example.board_service.rabbitmq.PostEventProducer;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -18,8 +21,9 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PostService {
     private final PostRepository postRepository;
-    private final PostEventProducer postEventProducer;
     private final ApplicationEventPublisher eventPublisher;
+    private final ObjectMapper objectMapper;
+    private final OutBoxRepository outBoxRepository;
 
     @Transactional
     public Post createPost(PostRequest request, String username) {
@@ -30,7 +34,22 @@ public class PostService {
                 .build();
 
         Post savedPost = postRepository.save(post);
-        eventPublisher.publishEvent(PostCreatedEvent.from(post));
+
+        PostCreatedEvent event = PostCreatedEvent.from(post);
+        try {
+            String payload = objectMapper.writeValueAsString(event);
+
+            Outbox outbox = Outbox.builder()
+                    .payload(payload)
+                    .eventType("POST_CREATED")
+                    .aggregateId(savedPost.getId())
+                    .build();
+
+            outBoxRepository.save(outbox);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+
         return savedPost;
     }
 

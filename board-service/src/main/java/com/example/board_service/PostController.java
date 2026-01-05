@@ -1,15 +1,10 @@
 package com.example.board_service;
 
-import com.example.board_service.dto.PostPageResponse;
-import com.example.board_service.dto.PostRequest;
+import com.example.board_service.response.PostPageResponse;
+import com.example.board_service.request.PostRequest;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.logging.log4j.Logger;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequiredArgsConstructor

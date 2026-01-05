@@ -1,4 +1,4 @@
-package com.example.board_service.dto;
+package com.example.board_service.response;
 
 import com.example.board_service.Post;
 import lombok.Builder;
