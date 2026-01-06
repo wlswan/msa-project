@@ -2,6 +2,10 @@ server:
   port: 8080
 
 spring:
+  data:
+    redis:
+      host: localhost
+      port: 6380
   cloud:
     gateway:
       routes:
@@ -9,6 +13,12 @@ spring:
           uri: http://localhost:8081
           predicates:
             - Path=/auth/**
+          filters:
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@userKeyResolver}"
+                redis-rate-limiter.replenishRate: 5
+                redis-rate-limiter.burstCapacity: 10
 
         - id: comment-service
           uri: http://localhost:8084
@@ -16,6 +26,11 @@ spring:
             - Path=/posts/*/comments/**
           filters:
             - name: JwtAuthFilter
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@userKeyResolver}"
+                redis-rate-limiter.replenishRate: 10
+                redis-rate-limiter.burstCapacity: 20
 
         - id: board-service
           uri: http://localhost:8083
@@ -23,6 +38,11 @@ spring:
             - Path=/posts/**
           filters:
             - name: JwtAuthFilter
+            - name: RequestRateLimiter
+              args:
+                key-resolver: "#{@userKeyResolver}"
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
 
         - id: websocket_route
           uri: http://localhost:8085
