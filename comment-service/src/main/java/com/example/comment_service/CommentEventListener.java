@@ -45,6 +45,7 @@ public class CommentEventListener {
                 .postId(postId)
                 .commentId(event.getComment().getId())
                 .writer(event.getComment().getAuthor())
+                .content(event.getComment().getContent())
                 .targetUser(targetUser)
                 .type(event.getParentId() == null ? CommentType.COMMENT : CommentType.REPLY)
                 .build();

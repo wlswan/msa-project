@@ -26,9 +26,6 @@ import static java.util.function.Predicate.not;
 @Slf4j
 public class CommentService {
     private final CommentRepository commentRepository;
-    private final PostClient postClient;
-    private final RedisTemplate<String, String> redisTemplate;
-    private final CommentEventProducer commentEventProducer;
     private final ApplicationEventPublisher eventPublisher;
 
     @Transactional
