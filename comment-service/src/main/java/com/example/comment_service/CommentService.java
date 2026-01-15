@@ -40,7 +40,12 @@ public class CommentService {
                 .build());
 
         comment.markSelfAsParent();
-        eventPublisher.publishEvent(new CommentSavedEvent(comment,parent == null ? null : parent.getId()));
+
+        eventPublisher.publishEvent(new CommentSavedEvent(
+                comment,
+                parent == null ? null : parent.getId(),
+                parent == null ? null : parent.getAuthor()
+        ));
         return CommentResponse.from(comment);
     }
     public CommentPageResponse getCommentsByPost(Long postId, int page, int size) {

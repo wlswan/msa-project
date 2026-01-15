@@ -1,26 +1,14 @@
 package com.example.comment_service;
 
 import com.example.comment_service.rabbitmq.CommentEventProducer;
-import com.example.comment_service.rabbitmq.PostClient;
 import com.example.common.CommentEvent;
 import com.example.common.CommentType;
-import feign.RetryableException;
-import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.redisson.api.RLock;
-import org.redisson.api.RedissonClient;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.retry.annotation.Backoff;
-import org.springframework.retry.annotation.Recover;
-import org.springframework.retry.annotation.Retryable;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
-
-import java.time.Duration;
-import java.util.concurrent.TimeUnit;
 
 @Component
 @RequiredArgsConstructor
@@ -33,24 +21,33 @@ public class CommentEventListener {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     @Async
     public void handleCommentSaved(CommentSavedEvent event) {
-        Long postId = event.getComment().getPostId();
+        Comment comment = event.getComment();
+        String writer = comment.getAuthor();
+        boolean isReply = event.getParentId() != null;
 
-        String targetUser = postAuthorProvider.getAuthorWithCache(postId);
+        // 알림 대상 결정: 답글이면 부모 댓글 작성자, 일반 댓글이면 게시글 작성자
+        String targetUser = isReply
+                ? event.getParentAuthor()
+                : postAuthorProvider.getAuthorWithCache(comment.getPostId());
 
+        // 알림 대상이 없거나 자기 자신이면 알림 생략
         if (targetUser == null) {
-            log.warn("작성자 정보를 가져올 수 없음. postId={}", postId);
+            log.warn("알림 대상을 찾을 수 없음. postId={}, commentId={}", comment.getPostId(), comment.getId());
             return;
         }
+        if (targetUser.equals(writer)) {
+            return;
+        }
+
         CommentEvent mqEvent = CommentEvent.builder()
-                .postId(postId)
-                .commentId(event.getComment().getId())
-                .writer(event.getComment().getAuthor())
-                .content(event.getComment().getContent())
+                .postId(comment.getPostId())
+                .commentId(comment.getId())
+                .writer(writer)
+                .content(comment.getContent())
                 .targetUser(targetUser)
-                .type(event.getParentId() == null ? CommentType.COMMENT : CommentType.REPLY)
+                .type(isReply ? CommentType.REPLY : CommentType.COMMENT)
                 .build();
 
         commentEventProducer.send(mqEvent);
     }
-
 }
