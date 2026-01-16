@@ -27,6 +27,7 @@ import static java.util.function.Predicate.not;
 public class CommentService {
     private final CommentRepository commentRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final PostAuthorProvider postAuthorProvider;
 
     @Transactional
     public CommentResponse create(Long postId, CommentRequest request, String username) {
@@ -41,11 +42,22 @@ public class CommentService {
 
         comment.markSelfAsParent();
 
-        eventPublisher.publishEvent(new CommentSavedEvent(
-                comment,
-                parent == null ? null : parent.getId(),
-                parent == null ? null : parent.getAuthor()
-        ));
+        // 알림 대상 결정
+        NotificationTargetType targetType;
+        String targetUser;
+        //선언 하고 아무것도 할당안하는거 별로임 나중에 바꿔보자
+
+        if (parent != null) {
+            targetType = NotificationTargetType.PARENT_AUTHOR;
+            targetUser = parent.getAuthor();
+        } else {
+            targetType = NotificationTargetType.POST_AUTHOR;
+            targetUser = postAuthorProvider.getAuthorWithCache(postId);
+        }
+
+        if(!username.equals(targetUser)) {
+            eventPublisher.publishEvent(new CommentSavedEvent(comment, targetType, targetUser));
+        }
         return CommentResponse.from(comment);
     }
     public CommentPageResponse getCommentsByPost(Long postId, int page, int size) {

@@ -17,37 +17,27 @@ import org.springframework.transaction.event.TransactionalEventListener;
 @Slf4j
 public class CommentEventListener {
 
-    private final PostAuthorProvider postAuthorProvider;
     private final CommentOutboxRepository outboxRepository;
     private final ObjectMapper objectMapper;
 
     @TransactionalEventListener(phase = TransactionPhase.BEFORE_COMMIT)
     public void handleCommentSaved(CommentSavedEvent event) {
         Comment comment = event.getComment();
-        String writer = comment.getAuthor();
-        boolean isReply = event.getParentId() != null;
+        String targetUser = event.getTargetUser();
 
-        // 알림 대상 결정: 답글이면 부모 댓글 작성자, 일반 댓글이면 게시글 작성자
-        String targetUser = isReply
-                ? event.getParentAuthor()
-                : postAuthorProvider.getAuthorWithCache(comment.getPostId());
 
-        // 알림 대상이 없거나 자기 자신이면 알림 생략
-        if (targetUser == null) {
-            log.warn("알림 대상을 찾을 수 없음. postId={}, commentId={}", comment.getPostId(), comment.getId());
-            return;
-        }
-        if (targetUser.equals(writer)) {
-            return;
-        }
+
+        CommentType commentType = event.getTargetType() == NotificationTargetType.PARENT_AUTHOR
+                ? CommentType.REPLY
+                : CommentType.COMMENT;
 
         CommentEvent mqEvent = CommentEvent.builder()
                 .postId(comment.getPostId())
                 .commentId(comment.getId())
-                .writer(writer)
+                .writer(comment.getAuthor())
                 .content(comment.getContent())
                 .targetUser(targetUser)
-                .type(isReply ? CommentType.REPLY : CommentType.COMMENT)
+                .type(commentType)
                 .build();
 
         saveToOutbox(mqEvent);
