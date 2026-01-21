@@ -24,9 +24,15 @@ public class NotificationService {
     }
 
     public void createNotification(CommentEvent event) {
+            if (notificationRepository.existsByCommentId(event.getCommentId())) {
+            log.info("이미 처리된 알림 (중복 무시): commentId={}", event.getCommentId());
+            return;
+        }
+
         String message = buildMessage(event);
 
         Notification notification = Notification.builder()
+                .commentId(event.getCommentId())
                 .receiver(event.getTargetUser())
                 .sender(event.getWriter())
                 .type(event.getType())
@@ -44,11 +50,10 @@ public class NotificationService {
                     "/queue/notifications",
                     NotificationResponse.from(notification)
             );
-            log.info("📢 실시간 알림 전송 완료: {}", event.getTargetUser());
+            log.info("실시간 알림 전송 완료: {}", event.getTargetUser());
         } catch (Exception e) {
-            log.error("❌ WebSocket 전송 실패: {}", e.getMessage());
+            log.error("WebSocket 전송 실패: {}", e.getMessage());
         }
-
     }
 
 

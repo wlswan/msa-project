@@ -6,6 +6,8 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 
 @Repository
-public interface NotificationRepository extends JpaRepository<Notification,Long> {
+public interface NotificationRepository extends JpaRepository<Notification, Long> {
     List<Notification> findByReceiverOrderByCreatedAtDesc(String receiver);
+
+    boolean existsByCommentId(Long commentId);
 }
