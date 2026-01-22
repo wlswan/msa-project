@@ -65,4 +65,20 @@ public class JwtProvider {
             throw new InvalidTokenException();
         }
     }
+
+    public long getRemainingExpiration(String token) {
+        try {
+            Claims claims = Jwts.parserBuilder()
+                    .setSigningKey(key)
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+
+            Date expiration = claims.getExpiration();
+            long remainingTime = expiration.getTime() - System.currentTimeMillis();
+            return Math.max(remainingTime, 0);
+        } catch (JwtException e) {
+            return 0;
+        }
+    }
 }
